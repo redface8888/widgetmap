@@ -191,7 +191,15 @@ var val = getVal(n);
     document.getElementById('mode-label').textContent = mode === 'now' ? 'Mode : état actuel' : 'Mode : projection à 2 ans (scénario central)';
     ps.attr('fill', function(d) { return col(getPct(d.properties.name || '')); });
   });
+ps.on('mousemove', function(event, d) {
+  var n = d.properties.name || '';
 
+  console.log("Nom reçu :", n);
+
+  var key = normalizeDeptName(n);
+  var inf = D[key];
+  ...
+});
 }).catch(function(err) {
   mapDiv.innerHTML = '<p style="color:red;padding:16px">Erreur de chargement : ' + err.message + '</p>';
 });
