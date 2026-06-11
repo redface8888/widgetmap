@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carte France — Soliguide</title>
+<style>
+body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; background: #fff; color: #111; }
+#controls { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+#legend { display: flex; gap: 12px; font-size: 12px; color: #666; flex-wrap: wrap; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 3px; vertical-align: middle; }
+button { font-size: 13px; padding: 6px 14px; border-radius: 8px; border: 1px solid #ccc; background: #fff; color: #111; cursor: pointer; }
+button:hover { background: #f5f5f5; }
+#map { width: 100%; position: relative; }
+#tooltip { display: none; position: fixed; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 8px 12px; font-size: 12px; pointer-events: none; z-index: 100; min-width: 160px; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+#mode-label { margin-top: 6px; font-size: 11px; color: #999; }
+</style>
+</head>
+<body>
+
+<div id="controls">
+<div id="legend">
+<span><span class="dot" style="background:#085041"></span>100%</span>
+<span><span class="dot" style="background:#1D9E75"></span>80–99%</span>
+<span><span class="dot" style="background:#9FE1CB"></span>50–79%</span>
+<span><span class="dot" style="background:#EF9F27"></span>20–49%</span>
+<span><span class="dot" style="background:#F5C4B3"></span>1–19%</span>
+<span><span class="dot" style="background:#F1EFE8;border:1px solid #ccc"></span>Non lancé</span>
+</div>
+<button id="btn">+ 2 ans (scénario central)</button>
+</div>
+
+<div id="map"></div>
+<div id="tooltip"></div>
+<div id="mode-label">Mode : état actuel</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script>
+var D = {
+"Ain":{a:52,p:668,r:616},"Aisne":{a:10,p:583,r:573},"Allier":{a:43,p:448,r:405},
+"Alpes-de-Haute-Provence":{a:50,p:301,r:251},"Hautes-Alpes":{a:26,p:274,r:248},
+"Alpes-Maritimes":{a:1689,p:1689,r:0},"Ardèche":{a:178,p:447,r:269},
+"Ardennes":{a:33,p:394,r:361},"Ariège":{a:357,p:357,r:0},"Aube":{a:21,p:432,r:411},
+"Aude":{a:53,p:484,r:431},"Aveyron":{a:60,p:407,r:347},"Bas-Rhin":{a:1057,p:1057,r:0},
+"Haut-Rhin":{a:734,p:734,r:0},"Bouches-du-Rhône":{a:1129,p:1278,r:149},
+"Calvados":{a:41,p:685,r:644},"Cantal":{a:284,p:284,r:0},"Charente":{a:559,p:559,r:0},
+"Charente-Maritime":{a:477,p:665,r:188},"Cher":{a:221,p:421,r:200},
+"Corrèze":{a:40,p:371,r:331},"Corse-du-Sud":{a:7,p:323,r:316},
+"Haute-Corse":{a:13,p:297,r:284},"Côte-d'Or":{a:568,p:589,r:21},
+"Côtes-d'Armor":{a:682,p:682,r:0},"Creuse":{a:26,p:243,r:217},
+"Deux-Sèvres":{a:64,p:480,r:416},"Dordogne":{a:367,p:507,r:140},
+"Doubs":{a:43,p:597,r:554},"Drôme":{a:70,p:583,r:513},
+"Essonne":{a:814,p:987,r:173},"Eure":{a:37,p:626,r:589},
+"Eure-et-Loir":{a:109,p:518,r:409},"Finistère":{a:153,p:806,r:653},
+"Gard":{a:523,p:717,r:194},"Haute-Garonne":{a:972,p:1045,r:73},
+"Gers":{a:65,p:328,r:263},"Gironde":{a:1304,p:1304,r:0},
+"Hérault":{a:1406,p:1406,r:0},"Ille-et-Vilaine":{a:251,p:895,r:644},
+"Indre":{a:384,p:384,r:0},"Indre-et-Loire":{a:200,p:638,r:438},
+"Isère":{a:111,p:975,r:864},"Jura":{a:29,p:387,r:358},
+"Landes":{a:83,p:515,r:432},"Loir-et-Cher":{a:81,p:443,r:362},
+"Loire":{a:388,p:725,r:337},"Haute-Loire":{a:59,p:361,r:302},
+"Loire-Atlantique":{a:875,p:1056,r:181},"Loiret":{a:131,p:680,r:549},
+"Lot":{a:264,p:310,r:46},"Lot-et-Garonne":{a:49,p:446,r:397},
+"Lozère":{a:125,p:193,r:68},"Maine-et-Loire":{a:192,p:756,r:564},
+"Manche":{a:26,p:561,r:535},"Marne":{a:23,p:607,r:584},
+"Haute-Marne":{a:53,p:302,r:249},"Mayenne":{a:49,p:428,r:379},
+"Meurthe-et-Moselle":{a:66,p:705,r:639},"Meuse":{a:17,p:314,r:297},
+"Morbihan":{a:704,p:727,r:23},"Moselle":{a:48,p:865,r:817},
+"Nièvre":{a:51,p:342,r:291},"Nord":{a:1610,p:1610,r:0},
+"Oise":{a:19,p:760,r:741},"Orne":{a:11,p:401,r:390},
+"Paris":{a:2155,p:2155,r:0},"Pas-de-Calais":{a:62,p:1047,r:985},
+"Puy-de-Dôme":{a:575,p:672,r:97},"Pyrénées-Atlantiques":{a:70,p:683,r:613},
+"Hautes-Pyrénées":{a:52,p:364,r:312},"Pyrénées-Orientales":{a:362,p:557,r:195},
+"Rhône":{a:212,p:1224,r:1012},"Haute-Saône":{a:29,p:366,r:337},
+"Saône-et-Loire":{a:54,p:597,r:543},"Sarthe":{a:120,p:608,r:488},
+"Savoie":{a:56,p:528,r:472},"Haute-Savoie":{a:281,p:769,r:488},
+"Seine-Maritime":{a:920,p:961,r:41},"Seine-et-Marne":{a:962,p:1042,r:80},
+"Yvelines":{a:1087,p:1087,r:0},"Somme":{a:35,p:609,r:574},
+"Tarn":{a:88,p:494,r:406},"Tarn-et-Garonne":{a:317,p:393,r:76},
+"Var":{a:879,p:889,r:10},"Vaucluse":{a:90,p:607,r:517},
+"Vendée":{a:117,p:687,r:570},"Vienne":{a:488,p:527,r:39},
+"Haute-Vienne":{a:175,p:477,r:302},"Vosges":{a:19,p:468,r:449},
+"Yonne":{a:47,p:447,r:400},"Territoire de Belfort":{a:18,p:271,r:253},
+"Hauts-de-Seine":{a:1198,p:1198,r:0},"Seine-Saint-Denis":{a:1066,p:1136,r:70},
+"Val-de-Marne":{a:1088,p:1088,r:0},"Val-d'Oise":{a:595,p:971,r:376}
+};
+
+var mode = 'now';
+
+function normalizeDeptName(n) {
+const aliases = {
+"Seien-et-Marne": "Seine-et-Marne",
+"Seine et Marne": "Seine-et-Marne",
+"Meurhe-et-Moselle": "Meurthe-et-Moselle",
+"Meurthe et Moselle": "Meurthe-et-Moselle",
+"Haut-Rhin": "Haut-Rhin",
+"Haute Rhin": "Haut-Rhin",
+"Haut Rhin": "Haut-Rhin"
+};
+
+return aliases[n] || n;
+}
+
+function getVal(n) {
+n = normalizeDeptName(n);
+
+var d = D[n];
+if (!d) return null;
+
+return mode === 'now'
+? d.a
+: Math.round(d.p - d.r * 0.091);
+}
+
+function getPct(n) {
+n = normalizeDeptName(n);
+
+var d = D[n];
+if (!d) return null;
+
+return Math.min(
+100,
+Math.round(getVal(n) / d.p * 100)
+);
+}
+function col(p) {
+if (p === null) return '#E8E6DF';
+if (p >= 100) return '#085041';
+if (p >= 80) return '#1D9E75';
+if (p >= 50) return '#9FE1CB';
+if (p >= 20) return '#EF9F27';
+if (p > 0) return '#F5C4B3';
+return '#F1EFE8';
+}
+
+var tt = document.getElementById('tooltip');
+var mapDiv = document.getElementById('map');
+
+d3.json('https://cdn.jsdelivr.net/npm/datamaps@0.5.10/src/js/data/fra.topo.json').then(function(fra) {
+var key = Object.keys(fra.objects)[0];
+var all = topojson.feature(fra, fra.objects[key]).features;
+
+var metro = all.filter(function(f) {
+var c = d3.geoCentroid(f);
+return c[0] >= -5.5 && c[0] <= 9.7 && c[1] >= 41.2 && c[1] <= 51.2;
+});
+
+var geo = { type: 'FeatureCollection', features: metro };
+var w = mapDiv.offsetWidth || 800;
+var h = Math.round(w * 1.08);
+
+var svg = d3.select('#map').append('svg')
+.attr('width', '100%')
+.attr('viewBox', '0 0 ' + w + ' ' + h)
+.style('display', 'block');
+
+var prj = d3.geoMercator().fitSize([w, h], geo);
+var path = d3.geoPath().projection(prj);
+
+var ps = svg.selectAll('path').data(metro).join('path')
+.attr('d', path)
+.attr('stroke', '#fff')
+.attr('stroke-width', 0.6)
+.style('cursor', 'pointer')
+.attr('fill', function(d) { return col(getPct(d.properties.name || '')); });
+
+ps.on('mousemove', function(event, d) {
+  console.log(d.properties);
+var n = d.properties.name || '';
+var inf = D[n], pct = getPct(n), val = getVal(n);
+var html = '<strong style="display:block;margin-bottom:4px">' + n + '</strong>';
+if (inf && val !== null) {
+html += 'Fiches : <strong>' + val.toLocaleString('fr-FR') + '</strong> / ' + inf.p.toLocaleString('fr-FR') + '<br>';
+html += 'Complétion : <strong style="color:' + (pct>=80?'#0F6E56':pct>=50?'#BA7517':'#D85A30') + '">' + pct + '%</strong>';
+} else {
+html += '<span style="color:#999">Non disponible</span>';
+}
+tt.innerHTML = html;
+tt.style.display = 'block';
+tt.style.left = (event.clientX + 14) + 'px';
+tt.style.top = (event.clientY + 14) + 'px';
+}).on('mouseleave', function() { tt.style.display = 'none'; });
+
+document.getElementById('btn').addEventListener('click', function() {
+mode = mode === 'now' ? '2ans' : 'now';
+this.textContent = mode === 'now' ? '+ 2 ans (scénario central)' : 'Retour à aujourd\'hui';
+document.getElementById('mode-label').textContent = mode === 'now' ? 'Mode : état actuel' : 'Mode : projection à 2 ans (scénario central)';
+ps.attr('fill', function(d) { return col(getPct(d.properties.name || '')); });
+});
+
+}).catch(function(err) {
+mapDiv.innerHTML = '<p style="color:red;padding:16px">Erreur de chargement : ' + err.message + '</p>';
+});
+</script>
+</body>
+</html>
