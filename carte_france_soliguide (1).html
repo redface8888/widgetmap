@@ -166,7 +166,7 @@ d3.json('https://cdn.jsdelivr.net/npm/datamaps@0.5.10/src/js/data/fra.topo.json'
     .attr('fill', function(d) { return col(getPct(d.properties.name || '')); });
 
   ps.on('mousemove', function(event, d) {
-var n = d.properties.name || '';
+var n = d.properties.name || ''; console.log("Nom reçu :", d.properties.name);
 var key = normalizeDeptName(n);
 
 var inf = D[key];
