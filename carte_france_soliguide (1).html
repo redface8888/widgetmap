@@ -88,13 +88,38 @@ var D = {
 
 var mode = 'now';
 
-function getVal(n) {
-  var d = D[n]; if (!d) return null;
-  return mode === 'now' ? d.a : Math.round(d.p - d.r * 0.091);
+function normalizeDeptName(n) {
+  const aliases = {
+    "Seien-et-Marne": "Seine-et-Marne",
+    "Seine et Marne": "Seine-et-Marne",
+    "Meurhe-et-Moselle": "Meurthe-et-Moselle",
+    "Meurthe et Moselle": "Meurthe-et-Moselle"
+  };
+
+  return aliases[n] || n;
 }
+
+function getVal(n) {
+  n = normalizeDeptName(n);
+
+  var d = D[n];
+  if (!d) return null;
+
+  return mode === 'now'
+    ? d.a
+    : Math.round(d.p - d.r * 0.091);
+}
+
 function getPct(n) {
-  var d = D[n]; if (!d) return null;
-  return Math.min(100, Math.round(getVal(n) / d.p * 100));
+  n = normalizeDeptName(n);
+
+  var d = D[n];
+  if (!d) return null;
+
+  return Math.min(
+    100,
+    Math.round(getVal(n) / d.p * 100)
+  );
 }
 function col(p) {
   if (p === null) return '#E8E6DF';
@@ -138,8 +163,12 @@ d3.json('https://cdn.jsdelivr.net/npm/datamaps@0.5.10/src/js/data/fra.topo.json'
     .attr('fill', function(d) { return col(getPct(d.properties.name || '')); });
 
   ps.on('mousemove', function(event, d) {
-    var n = d.properties.name || '';
-    var inf = D[n], pct = getPct(n), val = getVal(n);
+var n = d.properties.name || '';
+var key = normalizeDeptName(n);
+
+var inf = D[key];
+var pct = getPct(n);
+var val = getVal(n);
     var html = '<strong style="display:block;margin-bottom:4px">' + n + '</strong>';
     if (inf && val !== null) {
       html += 'Fiches : <strong>' + val.toLocaleString('fr-FR') + '</strong> / ' + inf.p.toLocaleString('fr-FR') + '<br>';
