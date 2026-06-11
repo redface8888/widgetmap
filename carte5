@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Carte France — Soliguide</title>
+
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+
+<style>
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+}
+
+#map {
+  height: 100vh;
+  width: 100%;
+}
+
+.info {
+  padding: 6px 10px;
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.15);
+  font-size: 13px;
+}
+.legend {
+  background: white;
+  padding: 8px;
+  line-height: 18px;
+}
+.legend i {
+  width: 12px;
+  height: 12px;
+  float: left;
+  margin-right: 6px;
+  opacity: 0.9;
+}
+button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 999;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  background: white;
+  cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div id="map"></div>
+<button id="modeBtn">+2 ans</button>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+// =======================
+// DONNÉES (ton dataset)
+// =======================
+const D = {
+"Ain":{a:52,p:668,r:616},"Aisne":{a:10,p:583,r:573},"Allier":{a:43,p:448,r:405},
+"Alpes-de-Haute-Provence":{a:50,p:301,r:251},"Hautes-Alpes":{a:26,p:274,r:248},
+"Alpes-Maritimes":{a:1689,p:1689,r:0},"Ardèche":{a:178,p:447,r:269},
+"Paris":{a:2155,p:2155,r:0},"Nord":{a:1610,p:1610,r:0},
+"Rhône":{a:212,p:1224,r:1012},"Seine-Saint-Denis":{a:1066,p:1136,r:70}
+};
+
+// =======================
+// MODE
+// =======================
+let mode = "now";
+
+function getVal(d){
+  if(!D[d]) return null;
+  return mode === "now" ? D[d].a : Math.round(D[d].p - D[d].r * 0.09);
+}
+
+function getPct(d){
+  if(!D[d]) return 0;
+  return Math.min(100, Math.round(getVal(d)/D[d].p*100));
+}
+
+function color(p){
+  if(p>=80) return "#1D9E75";
+  if(p>=50) return "#9FE1CB";
+  if(p>=20) return "#EF9F27";
+  if(p>0) return "#F5C4B3";
+  return "#F1EFE8";
+}
+
+// =======================
+// MAP
+// =======================
+const map = L.map('map').setView([46.6, 2.5], 6);
+
+// fond de carte
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  maxZoom: 19,
+  attribution: '&copy; OpenStreetMap'
+}).addTo(map);
+
+// =======================
+// GEOJSON France (FIABLE)
+// =======================
+fetch("https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements.geojson")
+.then(r=>r.json())
+.then(data=>{
+
+function style(feature){
+  const name = feature.properties.nom;
+  return {
+    fillColor: color(getPct(name)),
+    weight: 1,
+    color: "#fff",
+    fillOpacity: 0.85
+  };
+}
+
+function highlight(e){
+  const layer = e.target;
+  layer.setStyle({weight:2,color:"#000"});
+}
+
+function reset(e){
+  geo.resetStyle(e.target);
+}
+
+function onEach(feature, layer){
+  const name = feature.properties.nom;
+
+  layer.on({
+    mouseover: highlight,
+    mouseout: reset
+  });
+
+  layer.bindPopup(
+    `<b>${name}</b><br>
+    Fiches: ${getVal(name) ?? "N/A"} / ${(D[name]?.p ?? "N/A")}<br>
+    Complétion: ${getPct(name)}%`
+  );
+}
+
+const geo = L.geoJSON(data, {
+  style,
+  onEachFeature: onEach
+}).addTo(map);
+
+// =======================
+// MODE SWITCH
+// =======================
+document.getElementById("modeBtn").addEventListener("click", () => {
+  mode = mode === "now" ? "future" : "now";
+  geo.setStyle(style);
+});
+
+});
+</script>
+
+</body>
+</html>
